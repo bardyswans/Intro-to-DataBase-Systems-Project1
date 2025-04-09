@@ -1,35 +1,30 @@
 import mysql.connector
-
-print("Script started")
+from datetime import date
 
 # Function to connect to MySQL database
 def connect_to_db():
-    print("Connecting to DB...")
     try:
         conn = mysql.connector.connect(
-            host="localhost",        
-            user="root",             
-            password="",    
-            database="library_db"    
+            host="localhost",        # MySQL server host
+            user="root",             # MySQL username
+            password="Bradys36!",     # MySQL password
+            database="library_db"    # The name of the database you created
         )
-        print("Connected to the database.")
         return conn
     except mysql.connector.Error as err:
-        print(f"Error connecting to the database: {err}")
+        print(f"Error: {err}")
         return None
 
 # Function to initialize the database schema (create tables)
 def initialize_db():
-    print("Initializing database schema...")
     conn = connect_to_db()
     if conn is None:
-        print("Failed to connect to the database. Initialization skipped.")
+        print("Failed to connect to the database.")
         return
 
     cursor = conn.cursor()
 
     # Create Authors table
-    print("Creating Authors table...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Authors (
         author_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -41,7 +36,6 @@ def initialize_db():
     ''')
 
     # Create Publishers table
-    print("Creating Publishers table...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Publishers (
         publisher_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,7 +46,6 @@ def initialize_db():
     ''')
 
     # Create Books table
-    print("Creating Books table...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Books (
         book_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -65,7 +58,6 @@ def initialize_db():
     ''')
 
     # Create Book_Authors table (many-to-many relationship)
-    print("Creating Book_Authors table...")
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Book_Authors (
         book_id INT,
@@ -75,23 +67,46 @@ def initialize_db():
     );
     ''')
 
+    # Create Members table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Members (
+        member_id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255),
+        card_number VARCHAR(255) UNIQUE,
+        email VARCHAR(255),
+        phone VARCHAR(255)
+    );
+    ''')
+
+    # Create OverdueBooks table to track overdue books
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS OverdueBooks (
+        overdue_id INT AUTO_INCREMENT PRIMARY KEY,
+        book_id INT,
+        checkout_date DATE,
+        due_date DATE,
+        late_fees DECIMAL(10, 2),
+        FOREIGN KEY (book_id) REFERENCES Books(book_id)
+    );
+    ''')
+
+    # Commit the changes and close the connection
     conn.commit()
     cursor.close()
     conn.close()
-    print("Database schema initialized successfully.")
+
+    print("Database initialized successfully.")
 
 # Function to insert sample data into the tables
 def insert_sample_data():
-    print("Inserting sample data...")
     conn = connect_to_db()
     if conn is None:
-        print("Failed to connect to the database. Insertion skipped.")
+        print("Failed to connect to the database.")
         return
 
     cursor = conn.cursor()
 
     # Insert sample data into Authors table
-    print("Inserting into Authors...")
     cursor.executemany('''
     INSERT IGNORE INTO Authors (first_name, last_name, country, birth_date) 
     VALUES (%s, %s, %s, %s);
@@ -104,7 +119,6 @@ def insert_sample_data():
     ])
 
     # Insert sample data into Publishers table
-    print("Inserting into Publishers...")
     cursor.executemany('''
     INSERT IGNORE INTO Publishers (name, country, website)
     VALUES (%s, %s, %s);
@@ -115,7 +129,6 @@ def insert_sample_data():
     ])
 
     # Insert sample data into Books table
-    print("Inserting into Books...")
     cursor.executemany('''
     INSERT IGNORE INTO Books (title, ISBN, publication_date, publisher_id) 
     VALUES (%s, %s, %s, %s);
@@ -131,7 +144,6 @@ def insert_sample_data():
     ])
 
     # Insert sample data into Book_Authors table
-    print("Inserting into Book_Authors...")
     cursor.executemany('''
     INSERT IGNORE INTO Book_Authors (book_id, author_id)
     VALUES (%s, %s);
@@ -147,14 +159,105 @@ def insert_sample_data():
         (8, 5)
     ])
 
+    # Insert sample data into Members table
+    cursor.executemany('''
+    INSERT IGNORE INTO Members (name, card_number, email, phone)
+    VALUES (%s, %s, %s, %s);
+    ''', [
+        ('Alice Johnson', '123456', 'alice@gmail.com', '555-1234'),
+        ('Bob Smith', '234567', 'bob@gmail.com', '555-2345'),
+        ('Charlie Brown', '345678', 'charlie@gmail.com', '555-3456'),
+        ('David White', '456789', 'david@gmail.com', '555-4567'),
+        ('Eve Black', '567890', 'eve@gmail.com', '555-5678')
+    ])
+
+    # Insert sample data into OverdueBooks table
+    cursor.executemany('''
+    INSERT IGNORE INTO OverdueBooks (book_id, checkout_date, due_date, late_fees)
+    VALUES (%s, %s, %s, %s);
+    ''', [
+        (1, '2023-01-01', '2023-01-15', 5.00),
+        (2, '2023-02-01', '2023-02-15', 3.50),
+        (3, '2023-03-01', '2023-03-10', 2.00),
+        (4, '2023-04-01', '2023-04-10', 4.00),
+        (5, '2023-05-01', '2023-05-05', 1.00)
+    ])
+
+    # Commit the changes and close the connection
     conn.commit()
     cursor.close()
     conn.close()
+
     print("Sample data inserted successfully.")
 
-# Run everything
+# Fetch all books from the database
+def get_all_books():
+    conn = connect_to_db()
+    if conn is None:
+        print("Failed to connect to the database.")
+        return []
+
+    cursor = conn.cursor(dictionary=True)  # This makes the result a list of dictionaries
+
+    cursor.execute("SELECT * FROM Books")
+    books = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return books
+
+# Fetch all members from the database
+def get_all_members():
+    conn = connect_to_db()
+    if conn is None:
+        print("Failed to connect to the database.")
+        return []
+
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM Members")
+    members = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return members
+
+# Fetch all overdue books from the database
+def get_all_overdue_books():
+    conn = connect_to_db()
+    if conn is None:
+        print("Failed to connect to the database.")
+        return []
+
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM OverdueBooks")
+    overdue_books = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return overdue_books
+
+# Test the functions by initializing the database and inserting sample data
 if __name__ == "__main__":
-    print("Main block started")
     initialize_db()
     insert_sample_data()
-    print("Script completed")
+
+    # Test fetch functions
+    print("Fetching all books:")
+    books = get_all_books()
+    for book in books:
+        print(book)
+
+    print("\nFetching all members:")
+    members = get_all_members()
+    for member in members:
+        print(member)
+
+    print("\nFetching all overdue books:")
+    overdue_books = get_all_overdue_books()
+    for overdue_book in overdue_books:
+        print(overdue_book)
