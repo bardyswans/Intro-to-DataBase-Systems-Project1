@@ -194,18 +194,19 @@ def insert_sample_data():
 def get_all_books():
     conn = connect_to_db()
     if conn is None:
-        print("Failed to connect to the database.")
         return []
 
-    cursor = conn.cursor(dictionary=True)  # This makes the result a list of dictionaries
-
-    cursor.execute("SELECT * FROM Books")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM Books;")
     books = cursor.fetchall()
-
-    cursor.close()
     conn.close()
 
+    print("DEBUG: Books fetched from DB:")
+    for book in books:
+        print(book)  # Each book should be a tuple
+
     return books
+
 
 # Fetch all members from the database
 def get_all_members():
