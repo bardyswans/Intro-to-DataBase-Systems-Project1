@@ -20,11 +20,48 @@ def populate_tree(tree, columns, rows):
 
 def create_books_tab(notebook):
     tab = ttk.Frame(notebook)
+
+    # --- Search Bar ---
+    search_frame = ttk.Frame(tab)
+    search_frame.pack(fill="x", padx=10, pady=5)
+
+    tk.Label(search_frame, text="Search by Title or Author:").pack(side="left")
+    search_var = tk.StringVar()
+    search_entry = ttk.Entry(search_frame, textvariable=search_var, width=30)
+    search_entry.pack(side="left", padx=5)
+
     tree = ttk.Treeview(tab)
     tree.pack(fill="both", expand=True)
 
     def refresh():
         populate_tree(tree, ["ID", "Title", "Author", "ISBN", "Checked Out"], get_all_books())
+
+    def search_books():
+        keyword = search_var.get()
+        if not keyword:
+            refresh()
+            return
+
+        conn = connect()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                query = """
+                    SELECT * FROM Books 
+                    WHERE title LIKE %s OR author LIKE %s
+                """
+                like = f"%{keyword}%"
+                cursor.execute(query, (like, like))
+                results = cursor.fetchall()
+                populate_tree(tree, ["ID", "Title", "Author", "ISBN", "Checked Out"], results)
+                cursor.close()
+            except Error as e:
+                messagebox.showerror("Search Error", f"Could not search books: {e}")
+            finally:
+                conn.close()
+
+    search_btn = ttk.Button(search_frame, text="Search", command=search_books)
+    search_btn.pack(side="left", padx=5)
 
     def add_book():
         def submit():
@@ -65,6 +102,7 @@ def create_books_tab(notebook):
 
     refresh()
     return tab
+
 
 def create_members_tab(notebook):
     tab = ttk.Frame(notebook)
@@ -232,6 +270,49 @@ def create_overdue_tab(notebook):
     refresh()
     return tab
 
+def create_queries_tab(notebook):
+    tab = ttk.Frame(notebook)
+    tree = ttk.Treeview(tab)
+    tree.pack(fill="both", expand=True)
+
+    def run_query(query, columns):
+        conn = connect()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute(query)
+                rows = cursor.fetchall()
+                populate_tree(tree, columns, rows)
+                cursor.close()
+            except Error as e:
+                messagebox.showerror("Error", f"Query failed: {e}")
+            finally:
+                conn.close()
+
+    def query_books_members_join():
+        query = """
+            SELECT b.title AS Book, m.name AS Member
+            FROM Books b
+            JOIN CheckoutHistory ch ON b.title = ch.book_title
+            JOIN Members m ON ch.member_name = m.name;
+        """
+        run_query(query, ["Book", "Member"])
+
+  
+
+    def query_checked_out_books():
+        query = """
+            SELECT * FROM Books WHERE is_checked_out = 1;
+        """
+        run_query(query, ["ID", "Title", "Author", "ISBN", "Checked Out"])
+
+    btns = ttk.Frame(tab)
+    btns.pack(pady=5)
+    ttk.Button(btns, text="Books and Members", command=query_books_members_join).pack(side="left", padx=5)
+    ttk.Button(btns, text="All Checked Out Books", command=query_checked_out_books).pack(side="left", padx=5)
+
+    return tab
+
 def show_main_window():
     root = tk.Tk()
     root.title("Library Management System")
@@ -243,5 +324,6 @@ def show_main_window():
     notebook.add(create_members_tab(notebook), text="Members")
     notebook.add(create_checkout_tab(notebook), text="Checkout History")
     notebook.add(create_overdue_tab(notebook), text="Overdue Books")
+    notebook.add(create_queries_tab(notebook), text="🔎 Queries")
 
     root.mainloop()
