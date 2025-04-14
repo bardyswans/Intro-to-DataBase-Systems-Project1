@@ -1,12 +1,12 @@
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 from db import (
     get_all_books, insert_book, delete_book,
     get_all_members, insert_member, delete_member,
     get_checkout_history, insert_checkout,
-    get_overdue_books, insert_overdue
+    get_overdue_books, insert_overdue, connect
 )
+from mysql.connector import Error
 
 def populate_tree(tree, columns, rows):
     tree.delete(*tree.get_children())
@@ -147,9 +147,27 @@ def create_checkout_tab(notebook):
 
         tk.Button(win, text="Submit", command=submit).grid(row=5, column=1)
 
+    def delete_selected():
+        selected = tree.selection()
+        if selected:
+            history_id = tree.item(selected[0])["values"][0]
+            conn = connect()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM CheckoutHistory WHERE history_id = %s", (history_id,))
+                conn.commit()
+                messagebox.showinfo("Deleted", "Checkout history entry deleted.")
+                refresh()
+            except Error as e:
+                messagebox.showerror("Error", f"Failed to delete entry: {e}")
+            finally:
+                cursor.close()
+                conn.close()
+
     btns = ttk.Frame(tab)
     btns.pack(pady=5)
     ttk.Button(btns, text="Add Checkout", command=add_checkout).pack(side="left", padx=5)
+    ttk.Button(btns, text="Delete Entry", command=delete_selected).pack(side="left", padx=5)
     ttk.Button(btns, text="Refresh", command=refresh).pack(side="left", padx=5)
 
     refresh()
@@ -188,9 +206,27 @@ def create_overdue_tab(notebook):
 
         tk.Button(win, text="Submit", command=submit).grid(row=5, column=1)
 
+    def delete_selected():
+        selected = tree.selection()
+        if selected:
+            overdue_id = tree.item(selected[0])["values"][0]
+            conn = connect()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM OverdueBooks WHERE overdue_id = %s", (overdue_id,))
+                conn.commit()
+                messagebox.showinfo("Deleted", "Overdue entry deleted.")
+                refresh()
+            except Error as e:
+                messagebox.showerror("Error", f"Failed to delete entry: {e}")
+            finally:
+                cursor.close()
+                conn.close()
+
     btns = ttk.Frame(tab)
     btns.pack(pady=5)
     ttk.Button(btns, text="Add Overdue", command=add_overdue).pack(side="left", padx=5)
+    ttk.Button(btns, text="Delete Entry", command=delete_selected).pack(side="left", padx=5)
     ttk.Button(btns, text="Refresh", command=refresh).pack(side="left", padx=5)
 
     refresh()

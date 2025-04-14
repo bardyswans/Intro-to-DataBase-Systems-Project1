@@ -1,8 +1,9 @@
 from db import insert_book, insert_member, insert_checkout, insert_overdue
 
 # Books
-insert_book("1984", "George Orwell", "9780451524935", False)
-insert_book("The Hobbit", "J.R.R. Tolkien", "9780261102217", True)
+insert_book("1984", "George Orwell", "9780451524935", 0)
+insert_book("The Hobbit", "J.R.R. Tolkien", "9780261102217", 1)
+insert_book("Fahrenheit 451", "Ray Bradbury", "9781451673319", 0)
 
 # Members
 insert_member("Alice Johnson", "CARD001", "alice@gmail.com", "555-1234")

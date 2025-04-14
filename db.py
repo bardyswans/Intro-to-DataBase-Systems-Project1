@@ -1,113 +1,208 @@
 import mysql.connector
 from mysql.connector import Error
 
-# Replace these with your own database connection details
 DB_CONFIG = {
-    'host': 'localhost',       # Database host
-    'user': 'root',            # Database user
-    'password': 'Bradys36!',   # Database password
-    'database': 'library_db'   # Database name
+    'host': 'localhost',
+    'user': 'root',
+    'password': 'Bradys36!',  
+    'database': 'library_db'
 }
 
-# Connect to the database
 def connect():
     try:
         conn = mysql.connector.connect(**DB_CONFIG)
         if conn.is_connected():
-            print("Connected to the database")
             return conn
     except Error as e:
-        print(f"Error: {e}")
+        print(f"Connection error: {e}")
         return None
 
-        ('Eve Black', '567890', 'eve@gmail.com', '555-5678')
-# Fetch all books from the Books table
+
 def get_all_books():
     conn = connect()
-    if conn is None:
+    if not conn:
         return []
-
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT book_id, title, ISBN, publication_date, publisher_id FROM Books;")
-        books = cursor.fetchall()
+        cursor.execute("SELECT * FROM Books;")
+        result = cursor.fetchall()
+        cursor.close()
+        return result
+    finally:
+        conn.close()
+
+def insert_book(title, author, isbn, is_checked_out):
+    conn = connect()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO Books (title, author, isbn, is_checked_out)
+            VALUES (%s, %s, %s, %s);
+        """, (title, author, isbn, is_checked_out))
+        conn.commit()
+        return True
+    except Error as e:
+        print("Insert Book Error:", e)
+        return False
+    finally:
+        conn.close()
+
+def update_book(book_id, title, isbn, publish_date, author_id):
+    conn = connect()
+    if conn is None:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE Books SET title=%s, isbn=%s, publish_date=%s, author_id=%s WHERE book_id=%s;", 
+                       (title, isbn, publish_date, author_id, book_id))
+        conn.commit()
         cursor.close()
         conn.close()
-        return books
+        return True
     except Error as e:
-        print(f"Error fetching books: {e}")
+        print(f"Error updating book: {e}")
         conn.close()
-        return []
+        return False
 
-# Fetch all members from the Members table
+def delete_book(book_id):
+    conn = connect()
+    if conn is None:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM Books WHERE book_id=%s;", (book_id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Error as e:
+        print(f"Error deleting book: {e}")
+        conn.close()
+        return False
+
+
 def get_all_members():
     conn = connect()
-    if conn is None:
+    if not conn:
         return []
-
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT member_id, name, card_number, email, phone FROM Members;")
-        members = cursor.fetchall()
+        cursor.execute("SELECT * FROM Members;")
+        result = cursor.fetchall()
         cursor.close()
+        return result
+    finally:
         conn.close()
-        return members
-    except Error as e:
-        print(f"Error fetching members: {e}")
-        conn.close()
-        return []
 
-# Insert a new book into the Books table
-def insert_book(title, isbn, publish_date, author_id):
+def insert_member(name, card_number, email, phone):
+    conn = connect()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO Members (name, card_number, email, phone)
+            VALUES (%s, %s, %s, %s);
+        """, (name, card_number, email, phone))
+        conn.commit()
+        return True
+    except Error as e:
+        print("Insert Member Error:", e)
+        return False
+    finally:
+        conn.close()
+
+def update_member(member_id, name, card_number, email, phone):
     conn = connect()
     if conn is None:
         return False
-
+    
     try:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO Books (title, isbn, publish_date, author_id) VALUES (%s, %s, %s, %s);", 
-                       (title, isbn, publish_date, author_id))
+        cursor.execute("UPDATE Members SET name=%s, card_number=%s, email=%s, phone=%s WHERE member_id=%s;", 
+                       (name, card_number, email, phone, member_id))
         conn.commit()
         cursor.close()
         conn.close()
         return True
     except Error as e:
-        print(f"Error inserting book: {e}")
+        print(f"Error updating member: {e}")
         conn.close()
         return False
 
-# Insert a new member into the Members table
-def insert_member(first_name, last_name, email):
+def delete_member(member_id):
     conn = connect()
     if conn is None:
         return False
-
+    
     try:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO Members (first_name, last_name, email) VALUES (%s, %s, %s);", 
-                       (first_name, last_name, email))
+        cursor.execute("DELETE FROM Members WHERE member_id=%s;", (member_id,))
         conn.commit()
         cursor.close()
         conn.close()
         return True
     except Error as e:
-        print(f"Error inserting member: {e}")
+        print(f"Error deleting member: {e}")
         conn.close()
         return False
 
-# Insert sample data for books and members if tables are empty
-def insert_sample_data():
-    books = get_all_books()
-    if not books:
-        print("Inserting sample books...")
-        insert_book('Pride and Prejudice', '978-1503290563', '1813-01-28', 1)
-        insert_book('Adventures of Huckleberry Finn', '978-1503211094', '1885-12-10', 2)
 
-    members = get_all_members()
-    if not members:
-        print("Inserting sample members...")
-        insert_member('John', 'Doe', 'john.doe@example.com')
-        insert_member('Jane', 'Smith', 'jane.smith@example.com')
+def get_checkout_history():
+    conn = connect()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM CheckoutHistory;")
+        result = cursor.fetchall()
+        cursor.close()
+        return result
+    finally:
+        conn.close()
 
-# Call this function to insert data if tables are empty
-insert_sample_data()
+def insert_checkout(book_title, isbn, checkout_date, due_date, member_name):
+    conn = connect()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO CheckoutHistory (book_title, isbn, checkout_date, due_date, member_name)
+            VALUES (%s, %s, %s, %s, %s);
+        """, (book_title, isbn, checkout_date, due_date, member_name))
+        conn.commit()
+        return True
+    except Error as e:
+        print("Insert Checkout Error:", e)
+        return False
+    finally:
+        conn.close()
+
+
+def get_overdue_books():
+    conn = connect()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM OverdueBooks;")
+        result = cursor.fetchall()
+        cursor.close()
+        return result
+    finally:
+        conn.close()
+
+def insert_overdue(book_title, isbn, member_name, original_due_date, late_fees):
+    conn = connect()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO OverdueBooks (book_title, isbn, member_name, original_due_date, late_fees)
+            VALUES (%s, %s, %s, %s, %s);
+        """, (book_title, isbn, member_name, original_due_date, late_fees))
+        conn.commit()
+        return True
+    except Error as e:
+        print("Insert Overdue Error:", e)
+        return False
+    finally:
+        conn.close()

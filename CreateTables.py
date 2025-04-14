@@ -2,6 +2,8 @@ import mysql.connector
 from mysql.connector import Error
 
 schema_sql = """
+
+DROP TABLE IF EXISTS Books;
 CREATE TABLE IF NOT EXISTS Books (
     book_id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255),
@@ -41,7 +43,7 @@ try:
     conn = mysql.connector.connect(
         host="localhost",
         user="root",
-        password="Bradys36!",  # Replace with your real MySQL password
+        password="Bradys36!",  
         database="library_db"
     )
     cursor = conn.cursor()
