@@ -21,7 +21,6 @@ def populate_tree(tree, columns, rows):
 def create_books_tab(notebook):
     tab = ttk.Frame(notebook)
 
-    # --- Search Bar ---
     search_frame = ttk.Frame(tab)
     search_frame.pack(fill="x", padx=10, pady=5)
 
@@ -41,7 +40,6 @@ def create_books_tab(notebook):
         if not keyword:
             refresh()
             return
-
         conn = connect()
         if conn:
             try:
@@ -60,8 +58,7 @@ def create_books_tab(notebook):
             finally:
                 conn.close()
 
-    search_btn = ttk.Button(search_frame, text="Search", command=search_books)
-    search_btn.pack(side="left", padx=5)
+    ttk.Button(search_frame, text="Search", command=search_books).pack(side="left", padx=5)
 
     def add_book():
         def submit():
@@ -71,7 +68,6 @@ def create_books_tab(notebook):
                 refresh()
             else:
                 messagebox.showerror("Error", "Failed to add book.")
-
         win = tk.Toplevel()
         win.title("Add Book")
         tk.Label(win, text="Title").grid(row=0, column=0)
@@ -102,7 +98,6 @@ def create_books_tab(notebook):
 
     refresh()
     return tab
-
 
 def create_members_tab(notebook):
     tab = ttk.Frame(notebook)
@@ -188,24 +183,23 @@ def create_checkout_tab(notebook):
     def delete_selected():
         selected = tree.selection()
         if selected:
-            history_id = tree.item(selected[0])["values"][0]
+            record_id = tree.item(selected[0])["values"][0]
             conn = connect()
             try:
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM CheckoutHistory WHERE history_id = %s", (history_id,))
+                cursor.execute("DELETE FROM CheckoutHistory WHERE history_id = %s;", (record_id,))
                 conn.commit()
-                messagebox.showinfo("Deleted", "Checkout history entry deleted.")
+                messagebox.showinfo("Deleted", "Checkout record deleted.")
                 refresh()
             except Error as e:
-                messagebox.showerror("Error", f"Failed to delete entry: {e}")
+                messagebox.showerror("Error", f"Failed to delete: {e}")
             finally:
-                cursor.close()
                 conn.close()
 
     btns = ttk.Frame(tab)
     btns.pack(pady=5)
     ttk.Button(btns, text="Add Checkout", command=add_checkout).pack(side="left", padx=5)
-    ttk.Button(btns, text="Delete Entry", command=delete_selected).pack(side="left", padx=5)
+    ttk.Button(btns, text="Delete", command=delete_selected).pack(side="left", padx=5)
     ttk.Button(btns, text="Refresh", command=refresh).pack(side="left", padx=5)
 
     refresh()
@@ -220,51 +214,49 @@ def create_overdue_tab(notebook):
         populate_tree(tree, ["ID", "Title", "ISBN", "Member", "Due", "Late Fee"], get_overdue_books())
 
     def add_overdue():
-        def submit():
-            if insert_overdue(title.get(), isbn.get(), member.get(), due.get(), fees.get()):
-                messagebox.showinfo("Success", "Overdue entry added!")
-                win.destroy()
-                refresh()
-            else:
-                messagebox.showerror("Error", "Failed to add overdue.")
-
         win = tk.Toplevel()
         win.title("Add Overdue Record")
+
         tk.Label(win, text="Book Title").grid(row=0, column=0)
         tk.Label(win, text="ISBN").grid(row=1, column=0)
         tk.Label(win, text="Member").grid(row=2, column=0)
-        tk.Label(win, text="Original Due Date").grid(row=3, column=0)
-        tk.Label(win, text="Late Fees").grid(row=4, column=0)
+        tk.Label(win, text="Original Due Date (YYYY-MM-DD)").grid(row=3, column=0)
 
         title = tk.Entry(win); title.grid(row=0, column=1)
         isbn = tk.Entry(win); isbn.grid(row=1, column=1)
         member = tk.Entry(win); member.grid(row=2, column=1)
         due = tk.Entry(win); due.grid(row=3, column=1)
-        fees = tk.Entry(win); fees.grid(row=4, column=1)
 
-        tk.Button(win, text="Submit", command=submit).grid(row=5, column=1)
+        def submit():
+            if insert_overdue(title.get(), isbn.get(), member.get(), due.get()):
+                messagebox.showinfo("Success", "Overdue entry added with calculated fee!")
+                win.destroy()
+                refresh()
+            else:
+                messagebox.showerror("Error", "Failed to add overdue.")
+
+        tk.Button(win, text="Submit", command=submit).grid(row=4, column=1)
 
     def delete_selected():
         selected = tree.selection()
         if selected:
-            overdue_id = tree.item(selected[0])["values"][0]
+            record_id = tree.item(selected[0])["values"][0]
             conn = connect()
             try:
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM OverdueBooks WHERE overdue_id = %s", (overdue_id,))
+                cursor.execute("DELETE FROM OverdueBooks WHERE overdue_id = %s;", (record_id,))
                 conn.commit()
-                messagebox.showinfo("Deleted", "Overdue entry deleted.")
+                messagebox.showinfo("Deleted", "Overdue record deleted.")
                 refresh()
             except Error as e:
-                messagebox.showerror("Error", f"Failed to delete entry: {e}")
+                messagebox.showerror("Error", f"Failed to delete: {e}")
             finally:
-                cursor.close()
                 conn.close()
 
     btns = ttk.Frame(tab)
     btns.pack(pady=5)
     ttk.Button(btns, text="Add Overdue", command=add_overdue).pack(side="left", padx=5)
-    ttk.Button(btns, text="Delete Entry", command=delete_selected).pack(side="left", padx=5)
+    ttk.Button(btns, text="Delete", command=delete_selected).pack(side="left", padx=5)
     ttk.Button(btns, text="Refresh", command=refresh).pack(side="left", padx=5)
 
     refresh()
@@ -298,18 +290,31 @@ def create_queries_tab(notebook):
         """
         run_query(query, ["Book", "Member"])
 
-  
-
-    def query_checked_out_books():
+    def query_most_recent_checkout():
         query = """
-            SELECT * FROM Books WHERE is_checked_out = 1;
+            SELECT * FROM CheckoutHistory ch
+            WHERE checkout_date = (
+                SELECT MAX(checkout_date)
+                FROM CheckoutHistory
+                WHERE book_title = ch.book_title
+            );
         """
-        run_query(query, ["ID", "Title", "Author", "ISBN", "Checked Out"])
+        run_query(query, ["ID", "Title", "ISBN", "Checkout", "Due", "Member"])
+
+    def query_books_never_checked_out():
+        query = """
+            SELECT title, author, isbn FROM Books
+            WHERE title NOT IN (
+                SELECT book_title FROM CheckoutHistory
+            );
+        """
+        run_query(query, ["Title", "Author", "ISBN"])
 
     btns = ttk.Frame(tab)
     btns.pack(pady=5)
-    ttk.Button(btns, text="Books and Members", command=query_books_members_join).pack(side="left", padx=5)
-    ttk.Button(btns, text="All Checked Out Books", command=query_checked_out_books).pack(side="left", padx=5)
+    ttk.Button(btns, text="Books Currently Checked Out", command=query_books_members_join).pack(side="left", padx=5)
+    ttk.Button(btns, text="Latest Checkout per Book", command=query_most_recent_checkout).pack(side="left", padx=5)
+    ttk.Button(btns, text="Books Never Checked Out", command=query_books_never_checked_out).pack(side="left", padx=5)
 
     return tab
 

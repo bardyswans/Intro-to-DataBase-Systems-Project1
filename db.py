@@ -191,14 +191,29 @@ def get_overdue_books():
     finally:
         conn.close()
 
-def insert_overdue(book_title, isbn, member_name, original_due_date, late_fees):
+from datetime import datetime
+
+def insert_overdue(book_title, isbn, member_name, original_due_date_str, late_fees=None):
     conn = connect()
     try:
         cursor = conn.cursor()
+
+        
+        original_due_date = datetime.strptime(original_due_date_str, "%Y-%m-%d").date()
+        today = datetime.today().date()
+
+        
+        days_overdue = (today - original_due_date).days
+        days_overdue = max(0, days_overdue)  
+
+        
+        calculated_fee = round(days_overdue * 0.50, 2)
+
         cursor.execute("""
             INSERT INTO OverdueBooks (book_title, isbn, member_name, original_due_date, late_fees)
             VALUES (%s, %s, %s, %s, %s);
-        """, (book_title, isbn, member_name, original_due_date, late_fees))
+        """, (book_title, isbn, member_name, original_due_date, calculated_fee))
+
         conn.commit()
         return True
     except Error as e:
@@ -206,3 +221,4 @@ def insert_overdue(book_title, isbn, member_name, original_due_date, late_fees):
         return False
     finally:
         conn.close()
+
